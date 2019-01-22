@@ -20,7 +20,8 @@ weight_embedding <- function(corpus, ponderation, k = 2 , b = 0.75){
   # - ponderation: type de ponderation : tf-idf ou okapi
   # - k et b: les paramètres de Okapi
   # output: selon le type de ponderation, les moyennes des tf-idf ou Okapi par termes
-  x <- document_term_frequencies(x = corpus, split = " ")
+  corpus.preprocess <- tolower(corpus)
+  x <- document_term_frequencies(x = corpus.preprocess, split = " ")
   x <- document_term_frequencies_statistics(x, k, b)
   
   if (ponderation == "tfidf"){
@@ -29,6 +30,9 @@ weight_embedding <- function(corpus, ponderation, k = 2 , b = 0.75){
     return(x[, c("term","bm25")])
   }else message("Entrez le type de ponderation.")
 }
+
+
+
 
 document_embedding <- function(embedding, document, methode = "barycentre", weights = NA){
   # description: calculer le barycentre des vecteurs de word embedding
@@ -43,10 +47,9 @@ document_embedding <- function(embedding, document, methode = "barycentre", weig
   
   #trouver l'index des mots entrés dans les vecteurs des mots embedding
   ind_mots <- na.omit(match(mots , vocabulary))
-  N <- length(ind_mots) # Tous les mots du document ne figurent pas dans l'embedding
-  
+
   if (methode == "barycentre") {
-    barycentre <- mapply(sum, word_vec[ind_mots, ]) / N
+    barycentre <- mapply(mean, word_vec[ind_mots, ])
     return (barycentre)
     
   }else if (methode == "tfidf") {
@@ -65,7 +68,7 @@ document_embedding <- function(embedding, document, methode = "barycentre", weig
     words_in_vec <- as.vector( vocabulary[ind_mots] )
     pond <- as.numeric(as.matrix(weights[match(words_in_vec, weights$term), "bm25"]))
     Z <- sum(pond)
-    okapi <- colSums(pond * as.matrix(word_vec[ind_mots,-1])) / Z
+    okapi <- colSums(pond * as.matrix(word_vec[ind_mots, ])) / Z
     return (okapi)
   }
 }

@@ -31,7 +31,7 @@ data.group <- data.group[-empty]
 
 data.text <- readLines(data_filename, encoding = "utf8")
 data.text <- data.text[-empty]
-data.docsplit <- strsplit(data.text, ' ')
+data.docsplit <- strsplit(tolower(data.text), ' ')
 
 data.graph <- data.frame(read.table(graph_filename))
 colnames(data.graph) <- c('tar', 'src')
