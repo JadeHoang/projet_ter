@@ -48,8 +48,15 @@ okapi_avg <- weight_embedding(corpus = data.text, ponderation = "okapi")
 
 # load word embedding vectors
 file_vec <- "../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec"
-word_embedding <- load_word_embedding_vector(file_vec)
-
+# file_vec <- "../dataset/Common_Crawl_Wikipedia/cc.en.300.vec/data"
+# file_vec <- "../dataset/GoogleNews-vectors-negative300.bin/data"
+word_embedding <- load_word_embedding_vector("../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec", nrows = 120000)
+we <- read.csv("../dataset/GoogleNews-vectors-negative300.bin/data", 
+                 header = FALSE, 
+                 stringsAsFactors = FALSE, 
+                 sep = " ",
+                 quote= "", 
+                 nrows = 1000)
 
 doc_emb_bar <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "barycentre") )
 doc_emb_tfidf <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "tfidf", weights = tfidf_avg) )
@@ -60,14 +67,26 @@ doc_emb_okapi <- sapply( data.docsplit, function(doc) document_embedding(word_em
 
 
 
-#### Tâche d'évaluation: Classification avec plusieurs méthodes de régression
+#### Tâche d'évaluation: Classification avec 2 méthodes de régression (Bayésien Naïf / SVM)
 # Création des données d'entrainement et de test
-nobs <- length(data.group)
-n_sample_train <- round(0.8 * nobs)
-n_sample_test <- nobs - n_sample_train
-set.seed(123)
-training_ind <- sample(nobs, n_sample_train)
-testing_ind <- setdiff(1:nobs, training_ind)
+generate_train_test <- function(x, y, training_amount){
+  nobs <- length(y)
+  n_sample_train <- round(training_amount * nobs)
+  n_sample_test <- nobs - n_sample_train
+  training_ind <- sample(nobs, n_sample_train)
+  test_ind <- setdiff(1:nobs, training_ind)
+  
+  training_x <- x[, training_ind]
+  test_x <- x[, test_ind]
+  training_y <- y[training_ind]
+  test_y <- y[test_ind]
+  
+  train <- data.frame(x = t(training_x), y = training_y)
+  test <- data.frame(x = t(test_x), y = test_y)
+  
+  return( list(train = train, test = test))
+}
+
 
 prf <- function(truth, pred){
   cont_tab <- table(truth, pred)
@@ -77,72 +96,79 @@ prf <- function(truth, pred){
   return( list(precision = precision, recall = recall, f1_score = f1_score, tab_err = cont_tab))
 }
 
+mean_prf <- function(x){
+  precision_ind <- which(names(x) == "precision")
+  recall_ind <- which(names(x) == "recall")
+  f1_score_ind <- which(names(x) == "f1_score")
+  mean_precision <- mean(x[precision_ind]$precision)
+  mean_recall <- mean(x[recall_ind]$recall)
+  mean_f1_score <- mean(x[f1_score_ind]$f1_score)
+  return( list( precision = mean_precision, recall = mean_recall, f1_score = mean_f1_score))
+}
 
 
-### Entrainement et test de modèles avec régression logistique et SVM
+### Entrainement et test de modèles avec Bayésien Naïf et SVM
 library(MASS)
 library(e1071)
 
 
-
-## Vecteurs barycentriques ##
-training_data <- doc_emb_bar[, training_ind]
-testing_data <- doc_emb_bar[, testing_ind]
-training_labels <- data.group[training_ind]
-testing_labels <- data.group[testing_ind]
-
-train <- data.frame(x = t(training_data), y = training_labels)
-test <- data.frame(x = t(testing_data), y = testing_labels)
-
-# Régression logistique
-logistic_bar <- polr(y ~ ., data = train, method = "logistic")
-pred_logistic_bar <- predict(logistic_bar, test )
-prf_logistic_bar <- prf(test$y, pred_logistic_bar)
-
-# SVM
-svm_model_bar = svm(y ~ ., data = train )
-pred_svm_bar <- predict(svm_model_bar, t(testing_data) )
-prf_svm_bar <- prf(test$y, pred_svm_bar)
-
+prf_nb_bar <- c()
+prf_svm_bar <- c()
+for(i in 1:10){
+  ## Vecteurs barycentriques ##
+  dataset <- generate_train_test(doc_emb_bar, data.group, 0.1)
+  
+  # Bayésien Naïf
+  nb_bar <- naiveBayes(y ~ ., data = dataset$train)
+  pred_nb_bar <- predict(nb_bar, dataset$test)
+  prf_nb_bar <- c(prf_nb_bar, prf(dataset$test$y, pred_nb_bar))
+  
+  # SVM
+  svm_model_bar = svm(y ~ ., data = dataset$train )
+  pred_svm_bar <- predict(svm_model_bar, dataset$test )
+  prf_svm_bar <- c(prf_svm_bar, prf(dataset$test$y, pred_svm_bar))
+}
+mean_prf_nb_bar <- mean_prf(prf_nb_bar)
+mean_prf_svm_bar <- mean_prf(prf_svm_bar)
 
 
 
-## Vecteurs tf-idf ##
-training_data <- doc_emb_tfidf[, training_ind]
-testing_data <- doc_emb_tfidf[, testing_ind]
-
-train <- data.frame(x = t(training_data), y = training_labels)
-test <- data.frame(x = t(testing_data), y = testing_labels)
-
-# Régression logistique
-logistic_tfidf <- polr(y ~ ., data = train, method = "logistic")
-pred_logistic_tfidf <- predict(logistic_tfidf, test )
-prf_logistic_tfidf <- prf(test$y, pred_logistic_tfidf)
-
-# SVM
-svm_model_tfidf = svm(y ~ ., data = train )
-pred_svm_tfidf <- predict(svm_model_tfidf, t(testing_data) )
-prf_svm_tfidf <- prf(test$y, pred_svm_tfidf)
-
-
-
-
-## Vecteurs okapi ##
-training_data <- doc_emb_okapi[, training_ind]
-testing_data <- doc_emb_okapi[, testing_ind]
-
-train <- data.frame(x = t(training_data), y = training_labels)
-test <- data.frame(x = t(testing_data), y = testing_labels)
-
-# Régression logistique
-logistic_okapi <- polr(y ~ ., data = train, method = "logistic")
-pred_logistic_okapi <- predict(logistic_okapi, test )
-prf_logistic_okapi <- prf(test$y, pred_logistic_okapi)
-
-# SVM
-svm_model_okapi = svm(y ~ ., data = train )
-pred_svm_okapi <- predict(svm_model_okapi, t(testing_data) )
-prf_svm_okapi <- prf(test$y, pred_svm_okapi)
+prf_nb_tfidf <- c()
+prf_svm_tfidf <- c()
+for(i in 1:10){
+  ## Vecteurs tf-idf ##
+  dataset <- generate_train_test(doc_emb_tfidf, data.group, training_amount = 0.1)
+  
+  # Bayésien Naïf
+  nb_tfidf <- naiveBayes(y ~ ., data = dataset$train)
+  pred_nb_tfidf <- predict(nb_tfidf, dataset$test )
+  prf_nb_tfidf <- c(prf_nb_tfidf, prf(dataset$test$y, pred_nb_tfidf) )
+  
+  # SVM
+  svm_model_tfidf = svm(y ~ ., data = dataset$train )
+  pred_svm_tfidf <- predict(svm_model_tfidf, dataset$test )
+  prf_svm_tfidf <- c(prf_svm_tfidf, prf(dataset$test$y, pred_svm_tfidf) )
+}
+mean_prf_nb_tfidf <- mean_prf(prf_nb_tfidf)
+mean_prf_svm_tfidf <- mean_prf(prf_svm_tfidf)
 
 
+prf_nb_okapi <- c()
+prf_svm_okapi <- c()
+for(i in 1:10){
+  ## Vecteurs okapi ##
+  dataset <- generate_train_test(doc_emb_okapi, data.group, training_amount = 0.1)
+  
+  # Bayésien Naïf
+  nb_okapi <- naiveBayes(y ~ ., data = dataset$train)
+  pred_nb_okapi <- predict(nb_okapi, dataset$test )
+  prf_nb_okapi <- c( prf_nb_okapi, prf(dataset$test$y, pred_nb_okapi) )
+  
+  # SVM
+  svm_model_okapi = svm(y ~ ., data = dataset$train )
+  pred_svm_okapi <- predict(svm_model_okapi, dataset$test )
+  prf_svm_okapi <- c( pred_svm_okapi, prf(dataset$test$y, pred_svm_okapi) )
+}
+mean_prf_nb_okapi <- mean_prf(prf_nb_okapi)
+mean_prf_svm_okapi <- mean_prf(prf_svm_okapi)
 
