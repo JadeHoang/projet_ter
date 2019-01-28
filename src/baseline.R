@@ -4,12 +4,7 @@
 #         - tfidf     : pondération des vecteurs par tfidf
 #         - okapi     : pondération des vecteurs par okapi
 
-load_word_embedding_vector <- function(filename, header = FALSE , stringsAsFactors = FALSE, sep = " "  ,quote= "", nrows = 50000, skip = 1){
-  word_vec <- read.csv(filename, header = header ,stringsAsFactors = FALSE,
-                       sep = sep ,quote= "", nrows = nrows,  skip = skip)
-  names(word_vec) <- NULL
-  return( list( vec = word_vec[, -1], vocabulary = word_vec[, 1]) )
-}
+source('modules.R')
 
 weight_embedding <- function(corpus, ponderation, k = 2 , b = 0.75){
   require(udpipe)

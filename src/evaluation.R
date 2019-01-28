@@ -43,6 +43,7 @@ colnames(data.graph) <- c('tar', 'src')
 #### Extraction des vecteurs de documents
 
 source('baseline.R')
+source('SIF_Document_Embedding.R')
 
 # Calcul des pondérations tfidf et okapi
 tfidf_avg <- weight_embedding(corpus = data.text, ponderation = 'tfidf')
@@ -51,24 +52,16 @@ okapi_avg <- weight_embedding(corpus = data.text, ponderation = "okapi")
 
 # load word embedding vectors
 file_vec <- "../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec"
-# file_vec <- "../dataset/Common_Crawl_Wikipedia/cc.en.300.vec/data"
-# file_vec <- "../dataset/GoogleNews-vectors-negative300.bin/data"
 word_embedding <- load_word_embedding_vector("../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec", nrows = 50000)
-we <- read.csv("../dataset/GoogleNews-vectors-negative300.bin/data", 
-                 header = FALSE, 
-                 stringsAsFactors = FALSE, 
-                 sep = " ",
-                 quote= "", 
-                 nrows = 1000)
+
+# text8
+text8 <- readLines('../dataset/text8/text8', warn=FALSE)
+text8_cora <- c(text8, data.text)
 
 doc_emb_bar <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "barycentre") )
 doc_emb_tfidf <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "tfidf", weights = tfidf_avg) )
 doc_emb_okapi <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "okapi", weights = okapi_avg) )
-
-
-
-
-
+doc_emb_SIF <- SIF_document_embedding(D = data.docsplit, word_embedding, D_proba_w = text8_cora)
 
 #### Tâche d'évaluation: Classification avec 2 méthodes de régression (Bayésien Naïf / SVM)
 # Création des données d'entrainement et de test
@@ -79,7 +72,7 @@ library(MASS)
 library(e1071)
 source('evaluation_functions.R')
 
-ta <- 0.1 # Pourcentage de données d'entrainement
+ta <- 0.5 # Pourcentage de données d'entrainement
 
 prf_nb_bar <- c()
 prf_svm_bar <- c()
@@ -140,4 +133,25 @@ for(i in 1:10){
 }
 mean_prf_nb_okapi <- mean_prf(prf_nb_okapi)
 mean_prf_svm_okapi <- mean_prf(prf_svm_okapi)
+
+
+prf_nb_sif <- c()
+prf_svm_sif <- c()
+v_d <- readRDS(file = '../ressources/SIF_vectors.Rda')
+for(i in 1:10){
+  ## Vecteurs SIF ##
+  dataset <- generate_train_test(v_d, data.group, training_amount = ta)
+  
+  # Bayésien Naïf
+  nb_sif <- naiveBayes(y ~ ., data = dataset$train)
+  pred_nb_sif <- predict(nb_sif, dataset$test )
+  prf_nb_sif <- c( prf_nb_sif, prf(dataset$test$y, pred_nb_sif) )
+  
+  # SVM
+  svm_model_sif = svm(y ~ ., data = dataset$train )
+  pred_svm_sif <- predict(svm_model_sif, dataset$test )
+  prf_svm_sif <- c( pred_svm_sif, prf(dataset$test$y, pred_svm_sif) )
+}
+mean_prf_nb_sif <- mean_prf(prf_nb_sif)
+mean_prf_svm_sif <- mean_prf(prf_svm_sif)
 
