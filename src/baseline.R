@@ -20,7 +20,7 @@ weight_embedding <- function(corpus, ponderation, k = 2 , b = 0.75){
   x <- document_term_frequencies_statistics(x, k, b)
 
   if (ponderation == "tfidf"){
-    return(x[, c("doc_id", "term", "tf_idf")])
+    return(x[, c("doc_id", "term", "idf")])
   }else if (ponderation == "okapi"){
     return(x[, c("doc_id", "term","bm25")])
   }else message("Entrez le type de ponderation.")
@@ -56,8 +56,8 @@ document_embedding <- function(embedding, corpus, id, methode = "barycentre", we
     
     words_in_vec <- as.vector( vocabulary[ind_mots] )
     ind <- which(weights$doc_id == doc_id)
-    w <- weights[ind, c('term', 'tf_idf')]
-    pond <- as.numeric( as.matrix( w[match(words_in_vec, w$term), "tf_idf"] ) )
+    w <- weights[ind, c('term', 'idf')]
+    pond <- as.numeric( as.matrix( w[match(words_in_vec, w$term), "idf"] ) )
     Z <- sum(pond)
     tfidf <- colSums(pond * as.matrix( word_vec[ind_mots, ] ) ) / Z
     return (tfidf)

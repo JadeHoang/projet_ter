@@ -44,8 +44,8 @@ source('doc_embedding_topic_model.R')
 
 # load word embedding vectors
 # file_vec <- "../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec"
-# word_embedding <- load_word_embedding_vector("../ressources/glove_cora.txt", nrows = NULL)
-word_embedding <- load_word_embedding_vector("../dataset/glove.6B/glove.6B.300d.txt", nrows = 50000)
+word_embedding <- load_word_embedding_vector("../ressources/glove_cora.txt", nrows = NULL)
+# word_embedding <- load_word_embedding_vector("../dataset/glove.6B/glove.6B.300d.txt", nrows = 50000)
 # word_embedding <- load_word_embedding_vector("../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec", nrows = 50000)
 
 # text8
@@ -56,7 +56,8 @@ text8_cora <- c(text8, data.text)
 tfidf_avg <- weight_embedding(corpus = data.text, ponderation = 'tfidf')
 okapi_avg <- weight_embedding(corpus = data.text, ponderation = "okapi")
 
-doc_emb_bar <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "barycentre") )
+doc_emb_bar <- sapply( 1:length(data.docsplit), 
+                       function(doc_id) document_embedding(word_embedding, data.docsplit, doc_id, methode = "barycentre") )
 doc_emb_tfidf <- sapply( 1:length(data.docsplit), 
                          function(doc_id) document_embedding(word_embedding, data.docsplit, doc_id, methode = "tfidf", weights = tfidf_avg) )
 doc_emb_okapi <- sapply( 1:length(data.docsplit), 
@@ -169,7 +170,7 @@ prf_svm_tm_main_topic <- c()
 for(i in 1:10){
   svMisc::progress(i, max.value = 10 )
   ## Vecteurs TM ##
-  dataset <- assign_ind(doc_emb_topmodel_lda, data.group, ind)
+  dataset <- assign_ind(doc_emb_tm_main_topic, data.group, ind)
   
   # Bayésien Naïf
   nb_tm_main_topic <- naiveBayes(y ~ ., data = dataset$train)
@@ -189,7 +190,7 @@ prf_svm_tm <- c()
 for(i in 1:10){
   svMisc::progress(i, max.value = 10 )
   ## Vecteurs TM ##
-  dataset <- assign_ind(doc_emb_topmodel_lda, data.group, ind)
+  dataset <- assign_ind(doc_emb_tm, data.group, ind)
   
   # Bayésien Naïf
   nb_tm <- naiveBayes(y ~ ., data = dataset$train)
