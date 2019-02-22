@@ -2,7 +2,7 @@
 
 source('modules.R')
 
-SIF_document_embedding <- function(D, word_embeddings, D_proba_w){
+SIF_document_embedding <- function(D, word_embedding, D_proba_w){
   require(MASS)
 
   # Create Hash table to increase speed (100 times faster than vectors)
@@ -38,9 +38,7 @@ SIF_document_embedding <- function(D, word_embeddings, D_proba_w){
   }
   
   
-  v_w <- word_embedding$vec
   v_vocab <- word_embedding$vocabulary
-  V <- length(word_embedding$vocabulary)
   N <- dim(word_embedding$vec)[2]
   a <- 0.0001
   
@@ -57,10 +55,12 @@ SIF_document_embedding <- function(D, word_embeddings, D_proba_w){
     sum_vd <- numeric(length = N)
     # line below not needed if vw_hash contains all vectors from D
     d <- d[d %in% v_vocab]
+    norm <- 0
     for(w_i in d){
+      norm <- norm + ( a / (a + pw_hash[[w_i]]) )
       sum_vd <- sum_vd + ( a / (a + pw_hash[[w_i]]) ) * as.numeric(vw_hash[[w_i]])
     }
-    v_d[i, ] <- sum_vd / length(d)
+    v_d[i, ] <- sum_vd / norm
     i <- i + 1
   }
   

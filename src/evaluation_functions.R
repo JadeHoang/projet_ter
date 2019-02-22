@@ -12,22 +12,33 @@
 #'   l'entrainement. Les noms de colonne des dataframe sont y pour les labels et
 #'   x pour les features.
 generate_train_test <- function(x, y, training_amount){
+
+  ind <- generate_train_test_ind(x, y, training_amount)
+  data <- assign_ind(x, y, ind)
+  
+  return( list(train = data$train, test = data$test))
+}
+
+generate_train_test_ind <- function(x, y, training_amount){
   nobs <- length(y)
   n_sample_train <- round(training_amount * nobs)
   n_sample_test <- nobs - n_sample_train
   training_ind <- sample(nobs, n_sample_train)
   test_ind <- setdiff(1:nobs, training_ind)
-  
-  training_x <- x[, training_ind]
-  test_x <- x[, test_ind]
-  training_y <- y[training_ind]
-  test_y <- y[test_ind]
+  return(list(train = training_ind, test = test_ind))
+}
+
+assign_ind <- function(x, y, ind){
+  training_x <- x[, ind$train]
+  test_x <- x[, ind$test]
+  training_y <- y[ind$train]
+  test_y <- y[ind$test]
   
   train <- data.frame(x = t(training_x), y = training_y)
   test <- data.frame(x = t(test_x), y = test_y)
-  
-  return( list(train = train, test = test))
+  return(list(train = train, test = test))
 }
+
 
 
 #' Title

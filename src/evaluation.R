@@ -20,7 +20,6 @@
 #### Chargement des données
 
 data_filename <- '../dataset/cora_modified/data.txt'
-graph_filename <- '../dataset/cora_modified/graph.txt'
 group_filename <- '../dataset/cora_modified/group.txt'
 
 data.group <- readLines(group_filename)
@@ -36,32 +35,33 @@ data.text <- data.text[-empty]
 # caractères son mis en minuscule.
 data.docsplit <- strsplit(tolower(data.text), ' ') 
 
-data.graph <- data.frame(read.table(graph_filename))
-colnames(data.graph) <- c('tar', 'src')
-
-
 #### Extraction des vecteurs de documents
 
+source('modules.R')
 source('baseline.R')
 source('SIF_Document_Embedding.R')
-
-# Calcul des pondérations tfidf et okapi
-tfidf_avg <- weight_embedding(corpus = data.text, ponderation = 'tfidf')
-okapi_avg <- weight_embedding(corpus = data.text, ponderation = "okapi")
-
+source('doc_embedding_topic_model.R')
 
 # load word embedding vectors
-file_vec <- "../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec"
-word_embedding <- load_word_embedding_vector("../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec", nrows = 50000)
+# file_vec <- "../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec"
+# word_embedding <- load_word_embedding_vector("../ressources/glove_cora.txt", nrows = NULL)
+word_embedding <- load_word_embedding_vector("../dataset/glove.6B/glove.6B.300d.txt", nrows = 50000)
+# word_embedding <- load_word_embedding_vector("../dataset/wiki-news-300d-1M.vec/wiki-news-300d-1M.vec", nrows = 50000)
 
 # text8
 text8 <- readLines('../dataset/text8/text8', warn=FALSE)
 text8_cora <- c(text8, data.text)
 
+# Calcul des pondérations tfidf et okapi
+tfidf_avg <- weight_embedding(corpus = data.text, ponderation = 'tfidf')
+okapi_avg <- weight_embedding(corpus = data.text, ponderation = "okapi")
+
 doc_emb_bar <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "barycentre") )
 doc_emb_tfidf <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "tfidf", weights = tfidf_avg) )
 doc_emb_okapi <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "okapi", weights = okapi_avg) )
-doc_emb_SIF <- SIF_document_embedding(D = data.docsplit, word_embedding, D_proba_w = text8_cora)
+doc_emb_SIF <- SIF_document_embedding( data.docsplit, word_embedding, D_proba_w = text8_cora)
+doc_emb_tm_main_topic <- tm_embedding_main_topic(data.text, word_embedding, k_topics = 10, method = 'LDA')
+doc_emb_tm <- tm_embedding(data.text, word_embedding, k_topics = 10, method = 'LDA')
 
 #### Tâche d'évaluation: Classification avec 2 méthodes de régression (Bayésien Naïf / SVM)
 # Création des données d'entrainement et de test
@@ -73,12 +73,15 @@ library(e1071)
 source('evaluation_functions.R')
 
 ta <- 0.5 # Pourcentage de données d'entrainement
+# génération des même indices pour que les données soient comparées sur les même exemples
+ind <- generate_train_test_ind(doc_emb_bar, data.group, training_amount = ta ) 
 
 prf_nb_bar <- c()
 prf_svm_bar <- c()
 for(i in 1:10){
+  svMisc::progress(i, max.value = 10 )
   ## Vecteurs barycentriques ##
-  dataset <- generate_train_test(doc_emb_bar, data.group, training_amount = ta)
+  dataset <- assign_ind(doc_emb_bar, data.group, ind)
   
   # Bayésien Naïf
   nb_bar <- naiveBayes(y ~ ., data = dataset$train)
@@ -98,8 +101,9 @@ mean_prf_svm_bar <- mean_prf(prf_svm_bar)
 prf_nb_tfidf <- c()
 prf_svm_tfidf <- c()
 for(i in 1:10){
+  svMisc::progress(i, max.value = 10 )
   ## Vecteurs tf-idf ##
-  dataset <- generate_train_test(doc_emb_tfidf, data.group, training_amount = ta)
+  dataset <- assign_ind(doc_emb_tfidf, data.group, ind)
   
   # Bayésien Naïf
   nb_tfidf <- naiveBayes(y ~ ., data = dataset$train)
@@ -118,8 +122,9 @@ mean_prf_svm_tfidf <- mean_prf(prf_svm_tfidf)
 prf_nb_okapi <- c()
 prf_svm_okapi <- c()
 for(i in 1:10){
+  svMisc::progress(i, max.value = 10 )
   ## Vecteurs okapi ##
-  dataset <- generate_train_test(doc_emb_okapi, data.group, training_amount = ta)
+  dataset <- assign_ind(doc_emb_okapi, data.group, ind)
   
   # Bayésien Naïf
   nb_okapi <- naiveBayes(y ~ ., data = dataset$train)
@@ -139,8 +144,9 @@ prf_nb_sif <- c()
 prf_svm_sif <- c()
 v_d <- readRDS(file = '../ressources/SIF_vectors.Rda')
 for(i in 1:10){
+  svMisc::progress(i, max.value = 10 )
   ## Vecteurs SIF ##
-  dataset <- generate_train_test(v_d, data.group, training_amount = ta)
+  dataset <- assign_ind(v_d, data.group, ind)
   
   # Bayésien Naïf
   nb_sif <- naiveBayes(y ~ ., data = dataset$train)
@@ -155,3 +161,58 @@ for(i in 1:10){
 mean_prf_nb_sif <- mean_prf(prf_nb_sif)
 mean_prf_svm_sif <- mean_prf(prf_svm_sif)
 
+prf_nb_tm_main_topic <- c()
+prf_svm_tm_main_topic <- c()
+for(i in 1:10){
+  svMisc::progress(i, max.value = 10 )
+  ## Vecteurs TM ##
+  dataset <- assign_ind(doc_emb_topmodel_lda, data.group, ind)
+  
+  # Bayésien Naïf
+  nb_tm_main_topic <- naiveBayes(y ~ ., data = dataset$train)
+  pred_nb_tm_main_topic <- predict(nb_tm_main_topic, dataset$test )
+  prf_nb_tm_main_topic <- c( prf_nb_tm_main_topic, prf(dataset$test$y, pred_nb_tm_main_topic) )
+  
+  # SVM
+  svm_model_tm_main_topic = svm(y ~ ., data = dataset$train )
+  pred_svm_tm_main_topic <- predict(svm_model_tm_main_topic, dataset$test )
+  prf_svm_tm_main_topic <- c( pred_svm_tm_main_topic, prf(dataset$test$y, pred_svm_tm_main_topic) )
+}
+mean_prf_nb_tm_main_topic <- mean_prf(prf_nb_tm_main_topic)
+mean_prf_svm_tm_main_topic <- mean_prf(prf_svm_tm_main_topic)
+
+prf_nb_tm <- c()
+prf_svm_tm <- c()
+for(i in 1:10){
+  svMisc::progress(i, max.value = 10 )
+  ## Vecteurs TM ##
+  dataset <- assign_ind(doc_emb_topmodel_lda, data.group, ind)
+  
+  # Bayésien Naïf
+  nb_tm <- naiveBayes(y ~ ., data = dataset$train)
+  pred_nb_tm <- predict(nb_tm, dataset$test )
+  prf_nb_tm <- c( prf_nb_tm, prf(dataset$test$y, pred_nb_tm) )
+  
+  # SVM
+  svm_model_tm = svm(y ~ ., data = dataset$train )
+  pred_svm_tm <- predict(svm_model_tm, dataset$test )
+  prf_svm_tm <- c( pred_svm_tm, prf(dataset$test$y, pred_svm_tm) )
+}
+mean_prf_nb_tm <- mean_prf(prf_nb_tm)
+mean_prf_svm_tm <- mean_prf(prf_svm_tm)
+
+print("naive bayes")
+print(paste("bar:", mean_prf_nb_bar$f1_score))
+print(paste("tfidf:", mean_prf_nb_tfidf$f1_score))
+print(paste("okapi:", mean_prf_nb_okapi$f1_score))
+print(paste("sif:", mean_prf_nb_sif$f1_score))
+print(paste("tm:", mean_prf_nb_tm_main_topic$f1_score))
+print(paste("tm:", mean_prf_nb_tm$f1_score))
+
+print("SVM")
+print(paste("bar:", mean_prf_svm_bar$f1_score))
+print(paste("tfidf:", mean_prf_svm_tfidf$f1_score))
+print(paste("okapi:", mean_prf_svm_okapi$f1_score))
+print(paste("sif:", mean_prf_svm_sif$f1_score))
+print(paste("tm:", mean_prf_svm_tm_main_topic$f1_score))
+print(paste("tm:", mean_prf_svm_tm$f1_score))

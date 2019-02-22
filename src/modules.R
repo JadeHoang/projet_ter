@@ -1,8 +1,14 @@
 # other functions
 
-load_word_embedding_vector <- function(filename, header = FALSE , stringsAsFactors = FALSE, sep = " "  ,quote= "", nrows = 50000, skip = 1){
-  word_vec <- read.csv(filename, header = header ,stringsAsFactors = FALSE,
-                       sep = sep ,quote= "", nrows = nrows,  skip = skip)
+load_word_embedding_vector <- function(filename, nrows, header = FALSE , stringsAsFactors = FALSE, sep = " "  ,quote= "", skip = 1){
+  if(!is.null(nrows)){
+    word_vec <- read.csv(filename, header = header ,stringsAsFactors = FALSE,
+                         sep = sep ,quote= "", nrows = nrows,  skip = skip)
+  }else{
+    word_vec <- read.csv(filename, header = header ,stringsAsFactors = FALSE,
+                         sep = sep ,quote= "",  skip = skip)
+  }
+
   names(word_vec) <- NULL
   return( list( vec = word_vec[, -1], vocabulary = word_vec[, 1]) )
 }
