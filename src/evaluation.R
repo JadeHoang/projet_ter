@@ -57,8 +57,11 @@ tfidf_avg <- weight_embedding(corpus = data.text, ponderation = 'tfidf')
 okapi_avg <- weight_embedding(corpus = data.text, ponderation = "okapi")
 
 doc_emb_bar <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "barycentre") )
-doc_emb_tfidf <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "tfidf", weights = tfidf_avg) )
-doc_emb_okapi <- sapply( data.docsplit, function(doc) document_embedding(word_embedding, doc, methode = "okapi", weights = okapi_avg) )
+doc_emb_tfidf <- sapply( 1:length(data.docsplit), 
+                         function(doc_id) document_embedding(word_embedding, data.docsplit, doc_id, methode = "tfidf", weights = tfidf_avg) )
+doc_emb_okapi <- sapply( 1:length(data.docsplit), 
+                         function(doc_id) document_embedding(word_embedding, data.docsplit, doc_id, methode = "okapi", weights = okapi_avg) )
+
 doc_emb_SIF <- SIF_document_embedding( data.docsplit, word_embedding, D_proba_w = text8_cora)
 doc_emb_tm_main_topic <- tm_embedding_main_topic(data.text, word_embedding, k_topics = 10, method = 'LDA')
 doc_emb_tm <- tm_embedding(data.text, word_embedding, k_topics = 10, method = 'LDA')
