@@ -76,14 +76,34 @@ library(MASS)
 library(e1071)
 source('evaluation_functions.R')
 
-ta <- 0.5 # Pourcentage de données d'entrainement
-# génération des même indices pour que les données soient comparées sur les même exemples
-ind <- generate_train_test_ind(doc_emb_bar, data.group, training_amount = ta ) 
+ta <- 0.4 # Pourcentage de données d'entrainement
+
+v_d <- readRDS(file = '../ressources/SIF_vectors.Rda')
 
 prf_nb_bar <- c()
 prf_svm_bar <- c()
+
+prf_nb_tfidf <- c()
+prf_svm_tfidf <- c()
+
+prf_nb_okapi <- c()
+prf_svm_okapi <- c()
+
+prf_nb_sif <- c()
+prf_svm_sif <- c()
+
+prf_nb_tm_main_topic <- c()
+prf_svm_tm_main_topic <- c()
+
+prf_nb_tm <- c()
+prf_svm_tm <- c()
+
 for(i in 1:10){
   svMisc::progress(i, max.value = 10 )
+  # génération des même indices pour que les données soient comparées sur les même exemples
+  ind <- generate_train_test_ind(doc_emb_bar, data.group, training_amount = ta ) 
+  
+  ###################
   ## Vecteurs barycentriques ##
   dataset <- assign_ind(doc_emb_bar, data.group, ind)
   
@@ -96,16 +116,8 @@ for(i in 1:10){
   svm_model_bar = svm(y ~ ., data = dataset$train )
   pred_svm_bar <- predict(svm_model_bar, dataset$test )
   prf_svm_bar <- c(prf_svm_bar, prf(dataset$test$y, pred_svm_bar))
-}
-mean_prf_nb_bar <- mean_prf(prf_nb_bar)
-mean_prf_svm_bar <- mean_prf(prf_svm_bar)
 
-
-
-prf_nb_tfidf <- c()
-prf_svm_tfidf <- c()
-for(i in 1:10){
-  svMisc::progress(i, max.value = 10 )
+  ###################
   ## Vecteurs tf-idf ##
   dataset <- assign_ind(doc_emb_tfidf, data.group, ind)
   
@@ -118,15 +130,8 @@ for(i in 1:10){
   svm_model_tfidf = svm(y ~ ., data = dataset$train )
   pred_svm_tfidf <- predict(svm_model_tfidf, dataset$test )
   prf_svm_tfidf <- c(prf_svm_tfidf, prf(dataset$test$y, pred_svm_tfidf) )
-}
-mean_prf_nb_tfidf <- mean_prf(prf_nb_tfidf)
-mean_prf_svm_tfidf <- mean_prf(prf_svm_tfidf)
 
-
-prf_nb_okapi <- c()
-prf_svm_okapi <- c()
-for(i in 1:10){
-  svMisc::progress(i, max.value = 10 )
+  ###################
   ## Vecteurs okapi ##
   dataset <- assign_ind(doc_emb_okapi, data.group, ind)
   
@@ -139,16 +144,9 @@ for(i in 1:10){
   svm_model_okapi = svm(y ~ ., data = dataset$train )
   pred_svm_okapi <- predict(svm_model_okapi, dataset$test )
   prf_svm_okapi <- c( pred_svm_okapi, prf(dataset$test$y, pred_svm_okapi) )
-}
-mean_prf_nb_okapi <- mean_prf(prf_nb_okapi)
-mean_prf_svm_okapi <- mean_prf(prf_svm_okapi)
 
 
-prf_nb_sif <- c()
-prf_svm_sif <- c()
-v_d <- readRDS(file = '../ressources/SIF_vectors.Rda')
-for(i in 1:10){
-  svMisc::progress(i, max.value = 10 )
+  ###################
   ## Vecteurs SIF ##
   dataset <- assign_ind(v_d, data.group, ind)
   
@@ -161,15 +159,10 @@ for(i in 1:10){
   svm_model_sif = svm(y ~ ., data = dataset$train )
   pred_svm_sif <- predict(svm_model_sif, dataset$test )
   prf_svm_sif <- c( pred_svm_sif, prf(dataset$test$y, pred_svm_sif) )
-}
-mean_prf_nb_sif <- mean_prf(prf_nb_sif)
-mean_prf_svm_sif <- mean_prf(prf_svm_sif)
 
-prf_nb_tm_main_topic <- c()
-prf_svm_tm_main_topic <- c()
-for(i in 1:10){
-  svMisc::progress(i, max.value = 10 )
-  ## Vecteurs TM ##
+
+  ###################
+  ## Vecteurs TM main topic ##
   dataset <- assign_ind(doc_emb_tm_main_topic, data.group, ind)
   
   # Bayésien Naïf
@@ -181,14 +174,9 @@ for(i in 1:10){
   svm_model_tm_main_topic = svm(y ~ ., data = dataset$train )
   pred_svm_tm_main_topic <- predict(svm_model_tm_main_topic, dataset$test )
   prf_svm_tm_main_topic <- c( pred_svm_tm_main_topic, prf(dataset$test$y, pred_svm_tm_main_topic) )
-}
-mean_prf_nb_tm_main_topic <- mean_prf(prf_nb_tm_main_topic)
-mean_prf_svm_tm_main_topic <- mean_prf(prf_svm_tm_main_topic)
 
-prf_nb_tm <- c()
-prf_svm_tm <- c()
-for(i in 1:10){
-  svMisc::progress(i, max.value = 10 )
+  
+  ###################
   ## Vecteurs TM ##
   dataset <- assign_ind(doc_emb_tm, data.group, ind)
   
@@ -202,6 +190,22 @@ for(i in 1:10){
   pred_svm_tm <- predict(svm_model_tm, dataset$test )
   prf_svm_tm <- c( pred_svm_tm, prf(dataset$test$y, pred_svm_tm) )
 }
+
+mean_prf_nb_bar <- mean_prf(prf_nb_bar)
+mean_prf_svm_bar <- mean_prf(prf_svm_bar)
+
+mean_prf_nb_tfidf <- mean_prf(prf_nb_tfidf)
+mean_prf_svm_tfidf <- mean_prf(prf_svm_tfidf)
+
+mean_prf_nb_okapi <- mean_prf(prf_nb_okapi)
+mean_prf_svm_okapi <- mean_prf(prf_svm_okapi)
+
+mean_prf_nb_sif <- mean_prf(prf_nb_sif)
+mean_prf_svm_sif <- mean_prf(prf_svm_sif)
+
+mean_prf_nb_tm_main_topic <- mean_prf(prf_nb_tm_main_topic)
+mean_prf_svm_tm_main_topic <- mean_prf(prf_svm_tm_main_topic)
+
 mean_prf_nb_tm <- mean_prf(prf_nb_tm)
 mean_prf_svm_tm <- mean_prf(prf_svm_tm)
 
@@ -220,3 +224,21 @@ print(paste("okapi:", mean_prf_svm_okapi$f1_score))
 print(paste("sif:", mean_prf_svm_sif$f1_score))
 print(paste("tm:", mean_prf_svm_tm_main_topic$f1_score))
 print(paste("tm:", mean_prf_svm_tm$f1_score))
+
+out_csv <- data.frame(
+  NB = list(bar = mean_prf_nb_bar$f1_score, 
+            tfidf = mean_prf_nb_tfidf$f1_score,
+            okapi = mean_prf_nb_okapi$f1_score,
+            sif = mean_prf_nb_sif$f1_score,
+            tm_main_topic = mean_prf_nb_tm_main_topic$f1_score,
+            tm = mean_prf_nb_tm$f1_score),
+  SVM = list(bar = mean_prf_svm_bar$f1_score, 
+             tfidf = mean_prf_svm_tfidf$f1_score,
+             okapi = mean_prf_svm_okapi$f1_score,
+             sif = mean_prf_svm_sif$f1_score,
+             tm_main_topic = mean_prf_svm_tm_main_topic$f1_score,
+             tm = mean_prf_svm_tm$f1_score)
+  )
+write.csv( format(out_csv*100, digits=2, nsmall=2), 
+           file = paste0('results_', toString(ta), 'training','.csv') 
+        )
